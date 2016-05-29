@@ -8,16 +8,18 @@ use hyper::header::{Referer, UserAgent};
 use std::io::Read;
 use std::collections::HashMap;
 use stats::{StatType, Stat};
-use parse::parse_playbyplay;
+use parse::*;
 use constants::*;
+use err::NBAError;
 
-fn post_query<T>(base_url: String, payload: &T) -> String
+pub fn post_query<T>(base_url: String, payload: &T) -> Result<String, NBAError>
     where T: Encodable
 {
     let client = Client::new();
-    let mut url = Url::parse(&base_url).expect("url could not be parsed");
-    let s = json::encode(payload).expect("could not encode into json");
-    let dict: HashMap<String, String> = json::decode(&s).expect("could not decode into hashmap");
+    let mut url = try!(Url::parse(&base_url));
+    let s = try!(json::encode(payload));
+    let dict: HashMap<String, String> = try!(json::decode(&s));
+
     for (key, value) in dict {
         url.query_pairs_mut().append_pair(&key, &value);
     }
@@ -25,45 +27,73 @@ fn post_query<T>(base_url: String, payload: &T) -> String
     let referer = REFERER.to_owned();
     let user_agent = USERAGENT.to_owned();
 
-    let mut response = client.get(url)
-                             .header(Referer(referer))
-                             .header(UserAgent(user_agent))
-                             .send()
-                             .ok()
-                             .expect("url could not be pinged");
+    let mut response = try!(client.get(url)
+                                  .header(Referer(referer))
+                                  .header(UserAgent(user_agent))
+                                  .send());
+
     let body = {
         let mut s = String::new();
         let _ = response.read_to_string(&mut s);
         s
     };
 
-    body
+    Ok(body)
 }
 
 
 
 pub trait Scrape {
-    fn get_json<T>(stat: StatType, payload: &T) -> Vec<Stat> where T: Encodable;
+    fn get_json<T>(stat: StatType, payload: &T) -> Result<Vec<Stat>, NBAError> where T: Encodable;
 }
 
 
 impl Scrape for Stat {
-    fn get_json<T>(stat: StatType, payload: &T) -> Vec<Stat>
+    fn get_json<T>(stat: StatType, payload: &T) -> Result<Vec<Stat>, NBAError>
         where T: Encodable
     {
         let base_url = match stat {
             StatType::PlayByPlay => PLAYBYPLAY_BASE_URL,
+            StatType::GameHeader => GAMEHEADER_BASE_URL,
+            StatType::EastConfStandings => EASTCONFSTANDINGS_BASE_URL,
+            StatType::WestConfStandings => WESTCONFSTANDINGS_BASE_URL,
+            StatType::TeamRoster => TEAMROSTER_BASE_URL,
+
         };
-        let s: String = post_query(base_url.to_owned(), &payload);
-        let data: Value = serde_json::from_str(&s).expect("could not jsonify");
-        let data = data.as_object().expect("could not objectify");
-        let data = data.get("resultSets").expect("could not resultSet").as_array().unwrap();
-        let data = data[0].as_object().expect("could not objectify");
-        let data = data.get("rowSet").expect("could not rowSet");
+        let s: String = try!(post_query(base_url.to_owned(), &payload));
+
+        // match stat {
+        //     StatType::TeamRoster => println!("{:?}", s),
+        //     _ => println!("yes"),
+        // }
+        let data: Value = try!(serde_json::from_str(&s));
+        let data = data.as_object().unwrap();
+
+        let data = data.get("resultSets")
+                       .ok_or(NBAError::MissingField("resultSets"))
+                       .unwrap()
+                       .as_array()
+                       .expect("cannot convert json to array");
+        let data = match stat {
+            StatType::PlayByPlay => data[0].as_object().unwrap(),
+            StatType::GameHeader => data[0].as_object().unwrap(),
+            StatType::EastConfStandings => data[4].as_object().unwrap(),
+            StatType::WestConfStandings => data[5].as_object().unwrap(),
+            StatType::TeamRoster => data[0].as_object().unwrap(),
+
+        };
+        let headers = data.get("headers").ok_or(NBAError::MissingField("headers")).unwrap();
+        let headers = headers.as_array().unwrap();
+        let data = data.get("rowSet").ok_or(NBAError::MissingField("rowSet")).unwrap();
         let rows = data.as_array().unwrap();
 
         match stat {
-            StatType::PlayByPlay => parse_playbyplay(&rows),
+            StatType::PlayByPlay => parse_playbyplay(&headers, &rows),
+            StatType::GameHeader => parse_gameheader(&headers, &rows),
+            StatType::EastConfStandings => parse_eastconfstandings(&headers, &rows),
+            StatType::WestConfStandings => parse_westconfstandings(&headers, &rows),
+            StatType::TeamRoster => parse_teamroster(&headers, &rows),
+
         }
 
 

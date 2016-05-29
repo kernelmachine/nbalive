@@ -3,7 +3,7 @@
 extern crate rustc_serialize;
 extern crate hyper;
 extern crate serde_json;
-
+extern crate url;
 
 pub mod stats;
 pub mod queries;

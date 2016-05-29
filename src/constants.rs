@@ -4,3 +4,7 @@ pub static USERAGENT: &'static str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_
                                       Safari/537.36";
 
 pub static PLAYBYPLAY_BASE_URL: &'static str = "http://stats.nba.com/stats/playbyplay/";
+pub static GAMEHEADER_BASE_URL: &'static str = "http://stats.nba.com/stats/scoreboard/";
+pub static EASTCONFSTANDINGS_BASE_URL: &'static str = "http://stats.nba.com/stats/scoreboard/";
+pub static WESTCONFSTANDINGS_BASE_URL: &'static str = "http://stats.nba.com/stats/scoreboard/";
+pub static TEAMROSTER_BASE_URL: &'static str = "http://stats.nba.com/stats/commonteamroster/";
