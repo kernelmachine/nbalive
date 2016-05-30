@@ -15,7 +15,7 @@ mod tests {
             startperiod: "0".to_owned(),
             endperiod: "14".to_owned(),
         };
-        let stats = Stat::get_json(StatType::PlayByPlay, &payload);
+        let stats = Stat::get_data(StatType::PlayByPlay, &payload);
         // print!("{:?}", stats);
 
     }
@@ -27,7 +27,7 @@ mod tests {
             gamedate: "02/21/2015".to_owned(),
             dayoffset: "0".to_owned(),
         };
-        let stats = Stat::get_json(StatType::GameHeader, &payload);
+        let stats = Stat::get_data(StatType::GameHeader, &payload);
     }
     #[test]
     fn test_get_eastconfstandings() {
@@ -36,7 +36,7 @@ mod tests {
             gamedate: "02/21/2015".to_owned(),
             dayoffset: "0".to_owned(),
         };
-        let stats = Stat::get_json(StatType::EastConfStandings, &payload);
+        let stats = Stat::get_data(StatType::EastConfStandings, &payload);
     }
 
     #[test]
@@ -46,7 +46,7 @@ mod tests {
             gamedate: "02/21/2015".to_owned(),
             dayoffset: "0".to_owned(),
         };
-        let stats = Stat::get_json(StatType::WestConfStandings, &payload);
+        let stats = Stat::get_data(StatType::WestConfStandings, &payload);
     }
 
     #[test]
@@ -55,7 +55,7 @@ mod tests {
             teamid: "1610612739".to_owned(),
             season: "2015-16".to_owned(),
         };
-        let stats = Stat::get_json(StatType::TeamRoster, &payload);
+        let stats = Stat::get_data(StatType::TeamRoster, &payload);
     }
 
     #[test]

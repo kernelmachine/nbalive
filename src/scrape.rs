@@ -15,7 +15,7 @@ use err::NBAError;
 
 pub trait Scrape {
     fn post_query<T>(base_url: String, payload: &T) -> Result<Value, NBAError> where T: Encodable;
-    fn get_json<T>(stat: StatType, payload: &T) -> Result<Vec<Stat>, NBAError> where T: Encodable;
+    fn get_data<T>(stat: StatType, payload: &T) -> Result<Vec<Stat>, NBAError> where T: Encodable;
 }
 
 
@@ -49,7 +49,7 @@ impl Scrape for Stat {
         Ok(data)
     }
 
-    fn get_json<T>(stat: StatType, payload: &T) -> Result<Vec<Stat>, NBAError>
+    fn get_data<T>(stat: StatType, payload: &T) -> Result<Vec<Stat>, NBAError>
         where T: Encodable
     {
         let base_url = match stat {
