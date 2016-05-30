@@ -1,7 +1,7 @@
-use rustc_serialize::{Encodable, json};
+use rustc_serialize::json;
 use serde_json;
 use serde_json::Value;
-
+use regex::Regex;
 use hyper::{Client, Url};
 use hyper::header::{Referer, UserAgent};
 use std::io::Read;
@@ -10,24 +10,67 @@ use stats::{StatType, Stat};
 use parse::*;
 use constants::*;
 use err::NBAError;
-
+use queries::Query;
 
 
 pub trait Scrape {
-    fn post_query<T>(base_url: String, payload: &T) -> Result<Value, NBAError> where T: Encodable;
-    fn get_data<T>(stat: StatType, payload: &T) -> Result<Vec<Stat>, NBAError> where T: Encodable;
+    fn check_payload(payload: &Query);
+    fn post_query(base_url: String, payload: Query) -> Result<Value, NBAError>;
+    fn get_data(stat: StatType, payload: Query) -> Result<Vec<Stat>, NBAError>;
 }
 
 
 impl Scrape for Stat {
-    fn post_query<T>(base_url: String, payload: &T) -> Result<Value, NBAError>
-        where T: Encodable
-    {
+    fn check_payload(payload: &Query) {
+        match payload {
+            &Query::PlayByPlayQuery { ref gameid, ref startperiod, ref endperiod } => {
+                let gameid_re = Regex::new(r"\d{10}").unwrap();
+                let startperiod_re = Regex::new(r"[0-9]|1[0-4]").unwrap();
+                let endperiod_re = Regex::new(r"[0-9]|1[0-4]").unwrap();
+                assert!(gameid_re.is_match(gameid));
+                assert!(startperiod_re.is_match(startperiod));
+                assert!(endperiod_re.is_match(endperiod));
+            }
+            &Query::GameHeaderQuery { ref leagueid, ref gamedate, ref dayoffset } => {
+                let leagueid_re = Regex::new(r"00|01").unwrap();
+                let gamedate_re = Regex::new(r"^\d{2}/\d{2}/\d{4}$").unwrap();
+                let dayoffset_re = Regex::new(r"\d{1}|\d{2}").unwrap();
+                assert!(leagueid_re.is_match(leagueid));
+                assert!(gamedate_re.is_match(gamedate));
+                assert!(dayoffset_re.is_match(dayoffset));
+
+            }
+
+            &Query::EastConfStandingsQuery { ref leagueid, ref gamedate, ref dayoffset } => {
+                let leagueid_re = Regex::new(r"00|01").unwrap();
+                let gamedate_re = Regex::new(r"^\d{2}/\d{2}/\d{4}$").unwrap();
+                let dayoffset_re = Regex::new(r"\d{1}|\d{2}").unwrap();
+                assert!(leagueid_re.is_match(leagueid));
+                assert!(gamedate_re.is_match(gamedate));
+                assert!(dayoffset_re.is_match(dayoffset));
+            }
+            &Query::WestConfStandingsQuery { ref leagueid, ref gamedate, ref dayoffset } => {
+                let leagueid_re = Regex::new(r"00|01").unwrap();
+                let gamedate_re = Regex::new(r"^\d{2}/\d{2}/\d{4}$").unwrap();
+                let dayoffset_re = Regex::new(r"\d{1}|\d{2}").unwrap();
+                assert!(leagueid_re.is_match(leagueid));
+                assert!(gamedate_re.is_match(gamedate));
+                assert!(dayoffset_re.is_match(dayoffset));
+            }
+            &Query::TeamRosterQuery { ref season, ref teamid } => {
+                let season_re = Regex::new(r"^\d{4}-\d{2}$").unwrap();
+                let team_id_re = Regex::new(r"\d{10}").unwrap();
+                assert!(season_re.is_match(season));
+                assert!(team_id_re.is_match(teamid));
+            }
+        }
+    }
+    fn post_query(base_url: String, payload: Query) -> Result<Value, NBAError> {
         let client = Client::new();
         let mut url = try!(Url::parse(&base_url));
-        let s = try!(json::encode(payload));
-        let dict: HashMap<String, String> = try!(json::decode(&s));
 
+        let s = try!(json::encode(&payload));
+        let dict: HashMap<String, String> = try!(json::decode(&s));
         for (key, value) in dict {
             url.query_pairs_mut().append_pair(&key, &value);
         }
@@ -45,13 +88,14 @@ impl Scrape for Stat {
             let _ = response.read_to_string(&mut s);
             s
         };
+
         let data: Value = try!(serde_json::from_str(&body));
         Ok(data)
+
     }
 
-    fn get_data<T>(stat: StatType, payload: &T) -> Result<Vec<Stat>, NBAError>
-        where T: Encodable
-    {
+    fn get_data(stat: StatType, payload: Query) -> Result<Vec<Stat>, NBAError> {
+        Stat::check_payload(&payload);
         let base_url = match stat {
             StatType::PlayByPlay => PLAYBYPLAY_BASE_URL,
             StatType::GameHeader => GAMEHEADER_BASE_URL,
