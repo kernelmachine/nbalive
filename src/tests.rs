@@ -64,7 +64,7 @@ mod tests {
             teamid: "1610612739".to_owned(),
             season: "2015-16".to_owned(),
         };
-        let s: String = post_query(TEAMROSTER_BASE_URL.to_owned(), &payload).unwrap();
+        let s: String = Stat::post_query(TEAMROSTER_BASE_URL.to_owned(), &payload).unwrap();
         let data: Value = serde_json::from_str(&s).expect("could not jsonify");
         let data = data.as_object().expect("could not objectify");
         let data = data.get("resultSets").expect("could not resultSet").as_array().unwrap();

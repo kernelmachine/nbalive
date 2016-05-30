@@ -1,4 +1,3 @@
-// use rustc_serialize::json::Json;
 use rustc_serialize::{Encodable, json};
 use serde_json;
 use serde_json::Value;
@@ -12,43 +11,44 @@ use parse::*;
 use constants::*;
 use err::NBAError;
 
-pub fn post_query<T>(base_url: String, payload: &T) -> Result<String, NBAError>
-    where T: Encodable
-{
-    let client = Client::new();
-    let mut url = try!(Url::parse(&base_url));
-    let s = try!(json::encode(payload));
-    let dict: HashMap<String, String> = try!(json::decode(&s));
-
-    for (key, value) in dict {
-        url.query_pairs_mut().append_pair(&key, &value);
-    }
-
-    let referer = REFERER.to_owned();
-    let user_agent = USERAGENT.to_owned();
-
-    let mut response = try!(client.get(url)
-                                  .header(Referer(referer))
-                                  .header(UserAgent(user_agent))
-                                  .send());
-
-    let body = {
-        let mut s = String::new();
-        let _ = response.read_to_string(&mut s);
-        s
-    };
-
-    Ok(body)
-}
-
 
 
 pub trait Scrape {
+    fn post_query<T>(base_url: String, payload: &T) -> Result<Value, NBAError> where T: Encodable;
     fn get_json<T>(stat: StatType, payload: &T) -> Result<Vec<Stat>, NBAError> where T: Encodable;
 }
 
 
 impl Scrape for Stat {
+    fn post_query<T>(base_url: String, payload: &T) -> Result<Value, NBAError>
+        where T: Encodable
+    {
+        let client = Client::new();
+        let mut url = try!(Url::parse(&base_url));
+        let s = try!(json::encode(payload));
+        let dict: HashMap<String, String> = try!(json::decode(&s));
+
+        for (key, value) in dict {
+            url.query_pairs_mut().append_pair(&key, &value);
+        }
+
+        let referer = REFERER.to_owned();
+        let user_agent = USERAGENT.to_owned();
+
+        let mut response = try!(client.get(url)
+                                      .header(Referer(referer))
+                                      .header(UserAgent(user_agent))
+                                      .send());
+
+        let body: String = {
+            let mut s = String::new();
+            let _ = response.read_to_string(&mut s);
+            s
+        };
+        let data: Value = try!(serde_json::from_str(&body));
+        Ok(data)
+    }
+
     fn get_json<T>(stat: StatType, payload: &T) -> Result<Vec<Stat>, NBAError>
         where T: Encodable
     {
@@ -60,20 +60,16 @@ impl Scrape for Stat {
             StatType::TeamRoster => TEAMROSTER_BASE_URL,
 
         };
-        let s: String = try!(post_query(base_url.to_owned(), &payload));
 
-        // match stat {
-        //     StatType::TeamRoster => println!("{:?}", s),
-        //     _ => println!("yes"),
-        // }
-        let data: Value = try!(serde_json::from_str(&s));
+        let data: Value = try!(Stat::post_query(base_url.to_owned(), payload));
         let data = data.as_object().unwrap();
 
         let data = data.get("resultSets")
                        .ok_or(NBAError::MissingField("resultSets"))
                        .unwrap()
                        .as_array()
-                       .expect("cannot convert json to array");
+                       .unwrap();
+
         let data = match stat {
             StatType::PlayByPlay => data[0].as_object().unwrap(),
             StatType::GameHeader => data[0].as_object().unwrap(),

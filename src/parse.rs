@@ -5,8 +5,7 @@ use err::NBAError;
 pub fn find_idx(ls: &Vec<Value>, elem: &'static str) -> Result<usize, NBAError> {
     ls.iter()
       .position(|ref r| r.as_string() == Some(elem))
-      .ok_or(NBAError::HeaderMissingError(elem.to_owned()))
-
+      .ok_or(NBAError::HeaderMissingError(elem))
 }
 
 pub fn parse_playbyplay(headers: &Vec<Value>, rows: &Vec<Value>) -> Result<Vec<Stat>, NBAError> {
